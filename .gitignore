@@ -1,0 +1,15 @@
+/myenv
+.env
+
+personachat_test_fixed.json
+personachat_test_preprocessed.json
+personachat_test.json
+personachat_train_fixed.json
+personachat_train_preprocessed.json
+personachat_train.json
+
+cleaned_tweets.csv
+tweets.csv
+
+training_data.txt
+/opt-fine-tuned
