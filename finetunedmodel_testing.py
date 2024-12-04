@@ -1,8 +1,8 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # Load the fine-tuned model and tokenizer
-model = AutoModelForCausalLM.from_pretrained("./opt-fine-tuned")
-tokenizer = AutoTokenizer.from_pretrained("./opt-fine-tuned")
+model = AutoModelForCausalLM.from_pretrained("./opt-fine-tuned-2")
+tokenizer = AutoTokenizer.from_pretrained("./opt-fine-tuned-2")
 
 print("Welcome to the KRNL Chatbot!")
 print("Type your query below and the bot will respond. Type 'exit' to quit.")
