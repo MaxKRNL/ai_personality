@@ -14,3 +14,8 @@ tweets.csv
 training_data.txt
 /opt-fine-tuned
 /opt-fine-tuned-2
+/opt-fine-tuned-3
+/results
+/training_data
+
+cuda-repo-wsl-ubuntu-12-6-local_12.6.3-1_amd64.deb
