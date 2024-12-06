@@ -1,15 +1,20 @@
-from transformers import Trainer, TrainingArguments, AutoTokenizer, OPTForCausalLM, DataCollatorForLanguageModeling, AutoModelForCausalLM
+from transformers import Trainer, TrainingArguments, AutoTokenizer, AutoModelForCausalLM, DataCollatorForLanguageModeling
 from datasets import load_dataset
+from accelerate import Accelerator
 
-# # Load the Tokenizer
-# tokenizer = AutoTokenizer.from_pretrained("./opt-fine-tuned")
+# Initialize Hugging Face Accelerate
+accelerator = Accelerator()
 
-# # Load the Model with Causal LM Head
-# model = OPTForCausalLM.from_pretrained("./opt-fine-tuned")
+# Check device
+print(f"Using device: {accelerator.device}")
 
+# Load the Tokenizer and Model
 model_name = "./opt-fine-tuned"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name)
+
+# Move model to the appropriate device
+model = accelerator.prepare(model)
 
 # Load and Prepare Datasets
 print("Loading datasets...")
@@ -23,7 +28,7 @@ dataset = dataset.map(lambda x: {"text": x["tweet"]}, remove_columns=dataset.col
 
 # Split the dataset into train and test
 print("Splitting the dataset...")
-split_dataset = dataset.train_test_split(test_size=0.2, seed=42)
+split_dataset = dataset.train_test_split(test_size=0.2)
 
 # Tokenize the Dataset
 print("Tokenizing the dataset...")
@@ -32,7 +37,7 @@ def tokenize_function(examples):
         examples["text"],
         truncation=True,
         padding="max_length",
-        max_length=128,
+        max_length=500,
     )
 
 # Apply tokenization to both train and test splits
@@ -46,9 +51,9 @@ data_collator = DataCollatorForLanguageModeling(
 # Training arguments
 training_args = TrainingArguments(
     output_dir="./opt-fine-tuned-2",  # Output directory
-    num_train_epochs=2,              # Number of epochs
-    per_device_train_batch_size=16,  # Adjust batch size as needed
-    per_device_eval_batch_size=16,   # Batch size for evaluation
+    num_train_epochs=1,              # Number of epochs
+    per_device_train_batch_size=32,  # Adjust batch size as needed
+    per_device_eval_batch_size=32,   # Batch size for evaluation
     eval_strategy="steps",           # Evaluate at regular intervals
     save_steps=500,
     eval_steps=500,
@@ -62,12 +67,16 @@ training_args = TrainingArguments(
     report_to="none",                # Avoid unnecessary reports (e.g., WandB or TensorBoard)
 )
 
+# Prepare datasets using accelerate
+train_dataset = accelerator.prepare(tokenized_dataset["train"])
+eval_dataset = accelerator.prepare(tokenized_dataset["test"])
+
 # Trainer
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=tokenized_dataset["train"],
-    eval_dataset=tokenized_dataset["test"],
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
     data_collator=data_collator,
     tokenizer=tokenizer,
 )
@@ -82,6 +91,8 @@ model.save_pretrained("./opt-fine-tuned-2")
 tokenizer.save_pretrained("./opt-fine-tuned-2")
 
 print("Training and saving completed!")
+
+
 
 
 
