@@ -1,103 +1,80 @@
 from transformers import Trainer, TrainingArguments, AutoTokenizer, AutoModelForCausalLM, DataCollatorForLanguageModeling
-from datasets import load_dataset, Dataset
-from accelerate import Accelerator
+from datasets import load_dataset
 
-# Initialize Hugging Face Accelerate
-accelerator = Accelerator()
-device = accelerator.device
-print(f"Using device: {device}")
-
-# Load the Tokenizer and Model
-model_name = "facebook/opt-350m"  # Replace with your model path or name
+# Load tokenizer and model
+model_name = "./opt-fine-tuned"  # Ensure this points to your local model
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name)
 
-# Ensure the model is on GPU if available
-model.to(device)
-
-# Load your dataset (e.g., HuggingFaceTB/smoltalk)
+# Load and prepare dataset
 print("Loading dataset...")
-dataset = load_dataset("HuggingFaceTB/smoltalk", "smol-magpie-ultra")["train"]
+dataset = load_dataset("enryu43/twitter100m_tweets")["train"]
 
-# Preprocess the dataset to prepare input-output pairs
-print("Preprocessing dataset...")
-def preprocess_messages(example):
-    messages = example["messages"]
-    conversations = []
-    for i in range(len(messages) - 1):
-        if messages[i]["role"] == "user" and messages[i + 1]["role"] == "assistant":
-            user_input = messages[i]["content"]
-            assistant_response = messages[i + 1]["content"]
-            conversations.append({"input": user_input, "output": assistant_response})
-    return conversations
+# Filter for the 'tweet' field (the column with the text data you want to train on)
+print("Extracting 'tweet' column...")
+dataset = dataset.map(lambda x: {"input": x["tweet"]}, remove_columns=dataset.column_names)
 
-# Flatten the dataset and create input-output pairs
-processed_data = dataset.map(preprocess_messages, batched=True, remove_columns=dataset.column_names)
-processed_data = processed_data.flatten()
+# Flatten dataset into train-test split
+print("Splitting dataset...")
+split_data = dataset.train_test_split(test_size=0.2, seed=42)
 
-# Convert input-output pairs into text for fine-tuning
-print("Formatting dataset for training...")
-def format_data(example):
-    return {
-        "text": f"<|user|> {example['input']} <|assistant|> {example['output']}"
-    }
-
-formatted_data = processed_data.map(format_data, remove_columns=["input", "output"])
-
-# Split into train and test datasets
-split_data = formatted_data.train_test_split(test_size=0.2, seed=42)
-
-# Tokenize the dataset
+# Tokenize dataset
 print("Tokenizing dataset...")
 def tokenize_function(examples):
     return tokenizer(
-        examples["text"],
+        examples["input"],
         truncation=True,
         padding="max_length",
-        max_length=512
+        max_length=500,  # Adjust as needed
     )
 
-tokenized_data = split_data.map(tokenize_function, batched=True, remove_columns=["text"])
+tokenized_data = split_data.map(tokenize_function, batched=True, remove_columns=["input"])
 
 # Data collator for causal language modeling
 data_collator = DataCollatorForLanguageModeling(
-    tokenizer=tokenizer, mlm=False
+    tokenizer=tokenizer, mlm=False  # Not using masked language modeling
 )
 
 # Training arguments
 training_args = TrainingArguments(
-    output_dir="./fine-tuned-model",  # Output directory
-    num_train_epochs=2,              # Number of epochs
-    per_device_train_batch_size=16,  # Batch size
-    per_device_eval_batch_size=16,   # Evaluation batch size
-    evaluation_strategy="epoch",     # Evaluate at the end of each epoch
-    save_strategy="epoch",           # Save checkpoints at the end of each epoch
-    logging_dir="./logs",            # Logging directory
-    learning_rate=1e-5,              # Learning rate
-    warmup_steps=100,                # Warmup steps
-    weight_decay=0.01,               # Regularization
-    fp16=True,                       # Mixed precision training
-    save_total_limit=2,              # Limit saved checkpoints
-    report_to="none",                # No external reporting
+    output_dir="./opt-fine-tuned-twitter",  # Directory to save the model
+    overwrite_output_dir=True,
+    logging_steps=100,
+    num_train_epochs=2,  # Adjust epochs as needed
+    per_device_train_batch_size=16,  # Adjust batch size based on GPU memory
+    per_device_eval_batch_size=16,
+    learning_rate=5e-5,
+    warmup_steps=500,
+    weight_decay=0.01,
+    fp16=True,  # Enable mixed precision training for faster performance
+    eval_strategy="steps",
+    eval_steps=500,
+    save_steps=500,
+    logging_dir="./logs",  # Directory for logs
+    save_total_limit=3,
+    remove_unused_columns=False,
+    report_to="none",  # Disable external reporting tools like WandB
 )
 
-# Trainer
+# Initialize Trainer
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=tokenized_data["train"],
     eval_dataset=tokenized_data["test"],
-    data_collator=data_collator,
     tokenizer=tokenizer,
+    data_collator=data_collator,
 )
 
-# Fine-tune the model
-print("Starting training...")
+# Start training
+print("Starting fine-tuning...")
 trainer.train()
 
 # Save the fine-tuned model
-print("Saving fine-tuned model...")
-model.save_pretrained("./fine-tuned-model")
-tokenizer.save_pretrained("./fine-tuned-model")
+print("Saving the fine-tuned model...")
+model.save_pretrained("./opt-fine-tuned-twitter")
+tokenizer.save_pretrained("./opt-fine-tuned-twitter")
 
-print("Fine-tuning completed!")
+print("Training and saving completed!")
+
+
