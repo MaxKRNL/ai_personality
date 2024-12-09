@@ -1,21 +1,7 @@
 /myenv
 .env
 
-personachat_test_fixed.json
-personachat_test_preprocessed.json
-personachat_test.json
-personachat_train_fixed.json
-personachat_train_preprocessed.json
-personachat_train.json
-
-cleaned_tweets.csv
-tweets.csv
-
-training_data.txt
-/opt-fine-tuned
-/opt-fine-tuned-2
-/opt-fine-tuned-3
-/results
 /training_data
 
-cuda-repo-wsl-ubuntu-12-6-local_12.6.3-1_amd64.deb
+/opt-fine-tuned
+/results
