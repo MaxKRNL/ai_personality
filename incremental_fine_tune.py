@@ -14,11 +14,11 @@ import math
 MODEL_NAME = "./opt-fine-tuned"        # Path to your local fine-tuned model, or a base model
 DATASET_NAME = "enryu43/twitter100m_tweets"
 OUTPUT_BASE_DIR = "./opt-fine-tuned-twitter"
-MAX_LENGTH = 512                       # Max sequence length for tokenization
-TEST_SIZE = 0.2                        # Fraction of portion used as test set
+MAX_LENGTH = 300                       # Max sequence length for tokenization
+TEST_SIZE = 0.2                        # Fraction of each portion used as test set
 TRAIN_EPOCHS = 2                       # Number of epochs per portion
 LEARNING_RATE = 5e-5
-PORTION_PERCENT = 0.1                  # Train in increments of 10% (0.1)
+PORTION_PERCENT = 0.05                 # Train in increments of 5%
 SEED = 42                              # Random seed for reproducibility
 
 # Adjust batch size based on available GPU memory
@@ -45,14 +45,16 @@ dataset = dataset.shuffle(seed=SEED)
 print("Renaming 'tweet' column to 'input' and removing others...")
 dataset = dataset.map(lambda x: {"input": x["tweet"]}, remove_columns=dataset.column_names)
 
-# Calculate portion size (10% increments)
+# Calculate portion size (5% increments)
 dataset_length = len(dataset)
 portion_size = math.ceil(dataset_length * PORTION_PERCENT)
-num_portions = min(10, math.ceil(dataset_length / portion_size))
+
+# Number of portions is how many 5% chunks we can get out of the dataset.
+num_portions = math.ceil(dataset_length / portion_size)
 
 print(f"Total dataset length: {dataset_length}")
-print(f"Portion size (10%): {portion_size}")
-print(f"Number of 10% portions to train on: {num_portions}")
+print(f"Portion size (5%): {portion_size}")
+print(f"Number of 5% portions to train on: {num_portions}")
 
 # =====================================
 # Tokenization Function
@@ -87,6 +89,7 @@ training_args = TrainingArguments(
     per_device_train_batch_size=PER_DEVICE_TRAIN_BATCH_SIZE,
     per_device_eval_batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
     learning_rate=LEARNING_RATE,
+    gradient_accumulation_steps=4,   # Accumulate gradients over 4 mini-batches
     warmup_steps=500,
     weight_decay=0.01,
     fp16=True,                 # Use mixed precision if supported by your GPU
@@ -102,15 +105,19 @@ training_args = TrainingArguments(
 )
 
 # =====================================
-# Training in Portions
+# Training in 5% Portions
 # =====================================
 for i in range(num_portions):
     start_idx = i * portion_size
     end_idx = min((i + 1) * portion_size, dataset_length)
 
+    # If the portion doesn't have enough samples (can happen at the end), break out.
+    if start_idx >= dataset_length:
+        break
+
     print(f"\n=== Portion {i+1}/{num_portions}: Using samples {start_idx} to {end_idx-1} ===")
-    
-    # Select the current 10% portion from the dataset
+
+    # Select the current 5% portion from the dataset
     portion_dataset = dataset.select(range(start_idx, end_idx))
     
     # Split the portion into train/test sets
@@ -137,7 +144,7 @@ for i in range(num_portions):
     )
     
     # Train on the current portion
-    print("Starting training on the current 10% portion...")
+    print("Starting training on the current 5% portion...")
     trainer.train()
     
     # Save the model after completing this portion
@@ -149,6 +156,7 @@ for i in range(num_portions):
     # Update the model to the newly trained weights before moving on to the next portion
     model = AutoModelForCausalLM.from_pretrained(portion_output_dir)
 
-print("\nTraining on all 10% portions completed successfully!")
+print("\nTraining on all portions completed successfully!")
+
 
 
