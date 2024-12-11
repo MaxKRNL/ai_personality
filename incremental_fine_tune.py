@@ -10,8 +10,8 @@ from transformers import (
 from datasets import load_dataset
 import math
 
-# Ensure only NVIDIA GPU is visible
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# # Ensure only NVIDIA GPU is visible
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 print("CUDA available?", torch.cuda.is_available())
 print("Number of GPUs:", torch.cuda.device_count())
@@ -21,7 +21,8 @@ if not torch.cuda.is_available():
 # =====================================
 # Configuration
 # =====================================
-MODEL_NAME = "./opt-fine-tuned"
+# MODEL_NAME = "./opt-fine-tuned"
+MODEL_NAME = "facebook/opt-350m"
 DATASET_NAME = "enryu43/twitter100m_tweets"
 OUTPUT_BASE_DIR = "./opt-fine-tuned-twitter"
 MAX_LENGTH = 300
@@ -39,7 +40,7 @@ PER_DEVICE_EVAL_BATCH_SIZE = 16
 # =====================================
 print("Loading model and tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=True)
-model = AutoModelForCausalLM.from_pretrained(MODEL_NAME).cuda()  # Move model to GPU
+model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
 # =====================================
 # Load and Prepare Dataset
