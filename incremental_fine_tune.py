@@ -81,7 +81,7 @@ training_args = TrainingArguments(
     gradient_accumulation_steps=4,
     warmup_steps=500,
     weight_decay=0.01,
-    fp16=True,
+    fp16=True,  # Enable mixed precision training
     logging_steps=100,
     eval_strategy="steps",
     eval_steps=500,
@@ -91,7 +91,7 @@ training_args = TrainingArguments(
     remove_unused_columns=False,
     report_to="none",
     seed=SEED,
-    no_cuda=False
+    no_cuda=False  # Ensure CUDA is enabled
 )
 
 print(f"Trainer device will be: {training_args.device}")
@@ -112,9 +112,11 @@ for i in range(num_portions):
     
     print("Tokenizing training data...")
     tokenized_train = train_data.map(tokenize_function, batched=True, remove_columns=["input"], num_proc=os.cpu_count())
-    
-    print("Tokenizing testing data...")
     tokenized_test = test_data.map(tokenize_function, batched=True, remove_columns=["input"], num_proc=os.cpu_count())
+    
+    # Ensure tokenized datasets are in PyTorch format
+    tokenized_train.set_format("torch")
+    tokenized_test.set_format("torch")
     
     trainer = Trainer(
         model=model,
@@ -133,7 +135,11 @@ for i in range(num_portions):
     model.save_pretrained(portion_output_dir)
     tokenizer.save_pretrained(portion_output_dir)
 
+    # Reload the model to ensure it remains on the GPU
+    model = AutoModelForCausalLM.from_pretrained(portion_output_dir).cuda()
+
 print("\nTraining on all portions completed successfully!")
+
 
 
 
