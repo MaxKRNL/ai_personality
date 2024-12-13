@@ -10,9 +10,6 @@ from transformers import (
 from datasets import load_dataset
 import math
 
-# # Ensure only NVIDIA GPU is visible
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
 print("CUDA available?", torch.cuda.is_available())
 print("Number of GPUs:", torch.cuda.device_count())
 if not torch.cuda.is_available():
@@ -21,7 +18,6 @@ if not torch.cuda.is_available():
 # =====================================
 # Configuration
 # =====================================
-# MODEL_NAME = "./opt-fine-tuned"
 MODEL_NAME = "facebook/opt-350m"
 DATASET_NAME = "enryu43/twitter100m_tweets"
 OUTPUT_BASE_DIR = "./opt-fine-tuned-twitter"
@@ -40,7 +36,7 @@ PER_DEVICE_EVAL_BATCH_SIZE = 16
 # =====================================
 print("Loading model and tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=True)
-model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+model = AutoModelForCausalLM.from_pretrained(MODEL_NAME).cuda()
 
 # =====================================
 # Load and Prepare Dataset
@@ -95,10 +91,10 @@ training_args = TrainingArguments(
     remove_unused_columns=False,
     report_to="none",
     seed=SEED,
-    no_cuda=False  # Ensure this is False
+    no_cuda=False
 )
 
-print("Trainer device will be:", training_args.device)
+print(f"Trainer device will be: {training_args.device}")
 
 for i in range(num_portions):
     start_idx = i * portion_size
@@ -115,10 +111,10 @@ for i in range(num_portions):
     test_data = split_data["test"]
     
     print("Tokenizing training data...")
-    tokenized_train = train_data.map(tokenize_function, batched=True, remove_columns=["input"])
+    tokenized_train = train_data.map(tokenize_function, batched=True, remove_columns=["input"], num_proc=os.cpu_count())
     
     print("Tokenizing testing data...")
-    tokenized_test = test_data.map(tokenize_function, batched=True, remove_columns=["input"])
+    tokenized_test = test_data.map(tokenize_function, batched=True, remove_columns=["input"], num_proc=os.cpu_count())
     
     trainer = Trainer(
         model=model,
@@ -136,9 +132,6 @@ for i in range(num_portions):
     print(f"Saving model checkpoint for portion {i+1} to: {portion_output_dir}")
     model.save_pretrained(portion_output_dir)
     tokenizer.save_pretrained(portion_output_dir)
-
-    # Reload the model onto GPU as well
-    model = AutoModelForCausalLM.from_pretrained(portion_output_dir).cuda()
 
 print("\nTraining on all portions completed successfully!")
 
