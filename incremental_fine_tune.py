@@ -94,6 +94,7 @@ training_args = TrainingArguments(
     remove_unused_columns=False,
     report_to="none",
     seed=SEED,
+    ddp_find_unused_parameters=False,
     # no_cuda=False ensures we use GPU(s) if available
     no_cuda=False
 )
