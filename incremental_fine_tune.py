@@ -21,15 +21,15 @@ if not torch.cuda.is_available():
 MODEL_NAME = "facebook/opt-350m"
 DATASET_NAME = "enryu43/twitter100m_tweets"
 OUTPUT_BASE_DIR = "./opt-fine-tuned-twitter"
-MAX_LENGTH = 300
+MAX_LENGTH = 256
 TEST_SIZE = 0.2
 TRAIN_EPOCHS = 2
 LEARNING_RATE = 4e-5
 PORTION_PERCENT = 0.05
 SEED = 42
 
-PER_DEVICE_TRAIN_BATCH_SIZE = 16
-PER_DEVICE_EVAL_BATCH_SIZE = 16
+PER_DEVICE_TRAIN_BATCH_SIZE = 8
+PER_DEVICE_EVAL_BATCH_SIZE = 8
 
 # =====================================
 # Load Model and Tokenizer
