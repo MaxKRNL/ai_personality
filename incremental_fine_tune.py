@@ -36,7 +36,8 @@ PER_DEVICE_EVAL_BATCH_SIZE = 16
 # =====================================
 print("Loading model and tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=True)
-model = AutoModelForCausalLM.from_pretrained(MODEL_NAME).cuda()
+# Do not manually call .cuda() here; let the Trainer handle device placement
+model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
 # =====================================
 # Load and Prepare Dataset
@@ -71,6 +72,8 @@ data_collator = DataCollatorForLanguageModeling(
     mlm=False
 )
 
+# Adjust `TrainingArguments` to ensure distributed settings are recognized automatically.
+# If multiple GPUs are available, Trainer will use DataParallel or DistributedDataParallel.
 training_args = TrainingArguments(
     output_dir=OUTPUT_BASE_DIR,
     overwrite_output_dir=True,
@@ -91,7 +94,8 @@ training_args = TrainingArguments(
     remove_unused_columns=False,
     report_to="none",
     seed=SEED,
-    no_cuda=False  # Ensure CUDA is enabled
+    # no_cuda=False ensures we use GPU(s) if available
+    no_cuda=False
 )
 
 print(f"Trainer device will be: {training_args.device}")
@@ -132,13 +136,14 @@ for i in range(num_portions):
     
     portion_output_dir = f"{OUTPUT_BASE_DIR}-portion-{i+1}"
     print(f"Saving model checkpoint for portion {i+1} to: {portion_output_dir}")
-    model.save_pretrained(portion_output_dir)
+    trainer.save_model(portion_output_dir)
     tokenizer.save_pretrained(portion_output_dir)
 
-    # Reload the model to ensure it remains on the GPU
-    model = AutoModelForCausalLM.from_pretrained(portion_output_dir).cuda()
+    # Reload the model (no .cuda() call needed)
+    model = AutoModelForCausalLM.from_pretrained(portion_output_dir)
 
 print("\nTraining on all portions completed successfully!")
+
 
 
 
