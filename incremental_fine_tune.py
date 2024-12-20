@@ -28,8 +28,8 @@ LEARNING_RATE = 4e-5
 PORTION_PERCENT = 0.05
 SEED = 42
 
-PER_DEVICE_TRAIN_BATCH_SIZE = 8
-PER_DEVICE_EVAL_BATCH_SIZE = 8
+PER_DEVICE_TRAIN_BATCH_SIZE = 16
+PER_DEVICE_EVAL_BATCH_SIZE = 16
 
 # Specify which portion number to train. (e.g., 1 means the first 5% portion)
 PORTION_NUMBER = 1
@@ -90,8 +90,8 @@ training_args = TrainingArguments(
     fp16=True,
     logging_steps=100,
     eval_strategy="steps",
-    eval_steps=500,
-    save_steps=500,
+    eval_steps=1000,
+    save_steps=1000,
     logging_dir="./logs",
     save_total_limit=3,
     remove_unused_columns=False,
